@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"
+        integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <title>SockChat</title>
+    <style>
+        body {
+            margin-top: 30px;
+            height: 300px;
+        }
+
+        #messageArea {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div id="userFormArea" class="row">
+            <div class="col-md-12">
+                <form id="userForm">
+                    <div class="form-group">
+                        <label>Enter Your Username</label>
+                        <input id="username" class="form-control"/>
+                        <br>
+                        <input type="submit" class="btn btn-primary" value="Login"/>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div id="messageArea" class="row">
+            <div class="col-md-4">
+                <div class="well">
+                    <h3>Online Users</h3>
+                    <ul id="users" class="list-group"></ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div id="chat" class="chat"></div>
+
+            <form id="messageForm">
+                <div class="form-group">
+                    <label>Enter Message</label>
+                    <textarea id="message" class="form-control"></textarea>
+                    <br>
+                    <input type="submit" class="btn btn-primary" value="Send Message">
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        $(function () {
+            var socket = io.connect();
+            var $messageForm = $("#messageForm");
+            var $message = $("#message");
+            var $chat = $("#chat");
+            var $messageArea = $("#messageArea");
+            var $userFormArea = $("#userFormArea");
+            var $userForm = $("#userForm");
+            var $users = $("#users")
+            var $username = $("#username")
+            
+            $messageForm.submit(function (e) {
+                e.preventDefault();
+                socket.emit("send message", $message.val());
+                $message.val("");
+            });
+            socket.on("new message", function (data) {
+                $chat.append('<div class="well"><strong>'+data.user+'</strong>' + data.msg + '</div>')
+            });
+            $userForm.submit(function (e) {
+                e.preventDefault();
+                socket.emit("new user", $username.val(), function(data){
+                    if (data) {
+                        $userFormArea.hide();
+                        $messageArea.show();
+                    }
+                });
+                $username.val("");
+            });
+            socket.on("get users", function(data){
+                var html = '';
+                for (let i = 0; i < data.length; i++) {
+                    html += '<li class="list-group-item">'+data[i]+'</li>';
+                }
+                $users.html(html);
+            });
+        });
+    </script>
+</body>
+<!-- for mongodb, could be applied to mysql -->
+<!-- <body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6 offset-md-3 col-sm-12">
+                <h1 class="text-center">
+                    Socket Chat 
+                    <button id="clear" class="btn btn-danger">Clear</button>
+                </h1>
+                <div id="status"></div>
+                <div id="chat">
+                    <input type="text" id="username" class="form-control" placeholder="Enter name...">
+                    <br>
+                    <div class="card">
+                        <div id="messages" class="card-block">
+
+                        </div>
+                    </div>
+                    <br>
+                    <textarea id="textarea" class="form-control" placeholder="Enter message..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+
+    <script>
+        (function(){
+            var element = function(id){
+                return document.getElementById(id);
+            }
+
+            // Get Elements
+            var status = element('status');
+            var messages = element('messages');
+            var textarea = element('textarea');
+            var username = element('username');
+            var clearBtn = element('clear');
+
+            // Set default status
+            var statusDefault = status.textContent;
+
+            var setStatus = function(s){
+                // Set status
+                status.textContent = s;
+
+                if(s !== statusDefault){
+                    var delay = setTimeout(function(){
+                        setStatus(statusDefault);
+                    }, 4000);
+                }
+            }
+
+            // Connect to socket.io
+            var socket = io.connect('http://127.0.0.1:4000');
+
+            // Check for connection
+            if(socket !== undefined){
+                console.log('Connected to socket...');
+
+                // Handle Output
+                socket.on('output', function(data){
+                    //console.log(data);
+                    if(data.length){
+                        for(var x = 0;x < data.length;x++){
+                            // Build out message div
+                            var message = document.createElement('div');
+                            message.setAttribute('class', 'chat-message');
+                            message.textContent = data[x].name+": "+data[x].message;
+                            messages.appendChild(message);
+                            messages.insertBefore(message, messages.firstChild);
+                        }
+                    }
+                });
+
+                // Get Status From Server
+                socket.on('status', function(data){
+                    // get message status
+                    setStatus((typeof data === 'object')? data.message : data);
+
+                    // If status is clear, clear text
+                    if(data.clear){
+                        textarea.value = '';
+                    }
+                });
+
+                // Handle Input
+                textarea.addEventListener('keydown', function(event){
+                    if(event.which === 13 && event.shiftKey == false){
+                        // Emit to server input
+                        socket.emit('input', {
+                            name:username.value,
+                            message:textarea.value
+                        });
+
+                        event.preventDefault();
+                    }
+                })
+
+                // Handle Chat Clear
+                clearBtn.addEventListener('click', function(){
+                    socket.emit('clear');
+                });
+
+                // Clear Message
+                socket.on('cleared', function(){
+                    messages.textContent = '';
+                });
+            }
+
+        })();
+    </script>
+</body> -->
+
+</html>
