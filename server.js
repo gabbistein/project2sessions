@@ -23,7 +23,7 @@ io.sockets.on("connection", function (socket) {
         connections.splice(connections.indexOf(socket), 1);
         console.log("Disonnected: %s sockets connected", connections.length);
         console.log('Socket ID: ', socket.id);
-        console.log(socket.username.value + ' has left the game',);
+        // console.log(socket.username.value + ' has left the game',);
     });
 
     // Send message
